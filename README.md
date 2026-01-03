@@ -92,14 +92,13 @@ Ensure Python 3 is installed on your Mac. Python 3 can be installed via Homebrew
 brew install python
 ```
 
-or alternatively if you want to use conda to install python environments you can use:
+Install `uv` for fast Python environment management:
+
 ```bash
-brew install --cask miniconda
+brew install uv
 ```
 
-If you are using conda, then you can get the script to do the next bit for you (see later) in which case you can skip the 'pip install' here.
-
-After installing Python, it is easiest to install the required libraries using the `requirements.txt` file:
+You can then let the script auto-create a local virtual environment (see [Examples](#examples)), or manually install the required libraries using the `requirements.txt` file:
 
 ```bash
 pip install -r ./requirements.txt
@@ -192,10 +191,10 @@ Export to all formats (HTML, Text, Markdown, PDF, Word) and extract images:
 exportnotes.zsh --all
 ```
 
-Export notes with default settings in a python conda environment called `notesexport`, auto-creating and activating the environment if it doesn't exist, and auto-installing the required pip dependencies:
+Export notes using a local virtual environment (auto-creates `.venv` with uv if it doesn't exist, and installs required dependencies):
 
 ```bash
-exportnotes.zsh --conda-env notesexport
+exportnotes.zsh --use-venv
 ```
 
 Export notes to a specific directory and convert them to Markdown:
@@ -217,10 +216,10 @@ Suppress headers and footers in PDF and also convert to Word:
 exportnotes.zsh -s true -w true
 ```
 
-Convert notes in a specific directory to Markdown without getting any apple notes, creating a conda environment at the start, and cleaning up that environment afterwards
+Convert notes in a specific directory to Markdown without getting any apple notes, using a local virtual environment:
 
 ```bash
-exportnotes.zsh --root-dir $HOME/AppleNotesExport --conda-env exportnotes --extract-data false --convert-markdown true --remove-conda-env true
+exportnotes.zsh --root-dir $HOME/AppleNotesExport --use-venv --extract-data false --convert-markdown true
 ```
 
 Import notes using filenames starting Note- then with the title, then another - and the internal ID of the note at the end
@@ -254,8 +253,7 @@ exportnotes.zsh --filename-format "&account-&folder-&id" --use-subdirs false
 * `--note-limit` or `-n`: Set a limit on the total number of notes to export.
 * `--note-limit-per-folder` or `-f`: Set a limit on the number of notes to export per folder.
 * `--note-pick-probability` or `-b`: The probability (0-100) of picking a note for export. Default is 100.
-* `--conda-env` or `-c`: Specify the Conda environment to use.
-* `--remove-conda-env` or `-e`: Remove the specified Conda environment after the script runs.
+* `--use-venv` or `-v`: Use a local `.venv` virtual environment. Auto-creates with `uv` if it doesn't exist.
 
 ### Environment Variables
 
@@ -275,8 +273,7 @@ You can also use environment variables to set defaults, which can be overridden 
 * `NOTES_EXPORT_FILENAME_FORMAT`: Format for filenames. Default is `&title-&id`. Placeholders are the same as the command-line option.
 * `NOTES_EXPORT_SUBDIR_FORMAT`: Format for subdirectories. Default is `&account-&folder`.
 * `NOTES_EXPORT_USE_SUBDIRS`: Set to `false` to keep all files in a single directory. Default is `true`.
-* `NOTES_EXPORT_CONDA_ENV`: Specifies the Conda environment to use.
-* `NOTES_EXPORT_REMOVE_CONDA_ENV`: Remove the specified Conda environment after the script runs. Default is `false`.
+* `NOTES_EXPORT_USE_VENV`: Set to `true` to use a local `.venv` virtual environment. Default is `false`.
 
 You could add these to your `.zshrc` file to set up defaults, for example:
 
@@ -387,8 +384,8 @@ Example `.env` configuration:
 export NOTES_EXPORT_ROOT_DIR="$HOME/Documents/NotesBackup"
 export NOTES_EXPORT_CONVERT_TO_MARKDOWN="true"
 
-# Conda environment
-export NOTES_EXPORT_CONDA_ENV="notes-export"
+# Virtual environment (auto-creates .venv with uv if missing)
+export NOTES_EXPORT_USE_VENV="true"
 
 # Custom PATH additions (if needed)
 export PATH="/opt/homebrew/bin:$PATH"

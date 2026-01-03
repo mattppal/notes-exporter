@@ -30,13 +30,9 @@ WRAPPER_DIR=$(dirname "$0")
 # Change to the script directory
 cd "$WRAPPER_DIR"
 
-# Ensure conda is available if it exists
-if [[ -f "{home_dir}/miniconda3/etc/profile.d/conda.sh" ]]; then
-    source "{home_dir}/miniconda3/etc/profile.d/conda.sh"
-elif [[ -f "{home_dir}/anaconda3/etc/profile.d/conda.sh" ]]; then
-    source "{home_dir}/anaconda3/etc/profile.d/conda.sh"
-elif [[ -f "/opt/homebrew/Caskroom/miniconda/base/etc/profile.d/conda.sh" ]]; then
-    source "/opt/homebrew/Caskroom/miniconda/base/etc/profile.d/conda.sh"
+# Activate local .venv if it exists
+if [[ -f "$WRAPPER_DIR/.venv/bin/activate" ]]; then
+    source "$WRAPPER_DIR/.venv/bin/activate"
 fi
 
 # Log environment for debugging
@@ -46,7 +42,7 @@ echo "USER: $(whoami)" >> logs/debug.log
 echo "HOME: $HOME" >> logs/debug.log
 echo "PATH: $PATH" >> logs/debug.log
 echo "PWD: $(pwd)" >> logs/debug.log
-echo "CONDA available: $(which conda 2>/dev/null || echo 'not found')" >> logs/debug.log
+echo "VENV active: ${{VIRTUAL_ENV:-none}}" >> logs/debug.log
 echo "------------------------------" >> logs/debug.log
 
 # Run the actual export script
@@ -105,7 +101,7 @@ def create_plist_file(username, home_dir, script_dir, schedule_hour=9, schedule_
         <key>USER</key>
         <string>{username}</string>
         <key>PATH</key>
-        <string>/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin:/opt/homebrew/Caskroom/miniconda/base/bin</string>
+        <string>/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
     </dict>
     
 {schedule_section}
@@ -148,8 +144,8 @@ def create_env_file(script_dir):
 # export NOTES_EXPORT_CONVERT_TO_PDF="false"
 # export NOTES_EXPORT_EXTRACT_IMAGES="true"
 
-# Conda settings
-# export NOTES_EXPORT_CONDA_ENV="notes-export"
+# Virtual environment (auto-creates .venv with uv if missing)
+# export NOTES_EXPORT_USE_VENV="true"
 
 # Custom PATH additions
 # export PATH="/opt/homebrew/bin:$PATH"

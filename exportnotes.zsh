@@ -17,9 +17,8 @@ export NOTES_EXPORT_EXTRACT_DATA="${NOTES_EXPORT_EXTRACT_DATA:=true}"
 export NOTES_EXPORT_FILENAME_FORMAT="${NOTES_EXPORT_FILENAME_FORMAT:=&title-&id}"
 export NOTES_EXPORT_SUBDIR_FORMAT="${NOTES_EXPORT_SUBDIR_FORMAT:=&account-&folder}"
 export NOTES_EXPORT_USE_SUBDIRS="${NOTES_EXPORT_USE_SUBDIRS:=true}"
-export NOTES_EXPORT_CONDA_ENV="${NOTES_EXPORT_CONDA_ENV:=}"
-export NOTES_EXPORT_REMOVE_CONDA_ENV="${NOTES_EXPORT_REMOVE_CONDA_ENV:=false}"
-export NOTES_EXPORT_UPDATE_ALL="${NOTES_EXPORT_UPDATE_ALL:=false}"  # NEW: Default to incremental updates
+export NOTES_EXPORT_USE_VENV="${NOTES_EXPORT_USE_VENV:=false}"
+export NOTES_EXPORT_UPDATE_ALL="${NOTES_EXPORT_UPDATE_ALL:=false}"  # Default to incremental updates
 
 # Force image extraction if either Markdown, PDF, or Word conversion is enabled
 if [[ "${NOTES_EXPORT_CONVERT_TO_MARKDOWN}" == "true" || "${NOTES_EXPORT_CONVERT_TO_PDF}" == "true" || "${NOTES_EXPORT_CONVERT_TO_WORD}" == "true" ]]; then
@@ -133,21 +132,9 @@ while [[ $# -gt 0 ]]; do
             export NOTES_EXPORT_USE_SUBDIRS="$2"
             shift 2
             ;;
-        --conda-env|-c)
-            if [[ -z "$2" ]]; then
-                echo "Error: --conda-env requires an argument."
-                exit 1
-            fi
-            export NOTES_EXPORT_CONDA_ENV="$2"
-            shift 2
-            ;;
-        --remove-conda-env|-e)
-            if [[ -z "$2" ]]; then
-                echo "Error: --remove-conda-env requires an argument."
-                exit 1
-            fi
-            export NOTES_EXPORT_REMOVE_CONDA_ENV="$2"
-            shift 2
+        --use-venv|-v)
+            export NOTES_EXPORT_USE_VENV="true"
+            shift
             ;;
         --update-all|-U)
             # NEW: Force full update of all notes (disable incremental updates)
@@ -180,8 +167,7 @@ while [[ $# -gt 0 ]]; do
             echo "  -t, --filename-format FORMAT       Filename format (default: &title-&id)"
             echo "  -u, --subdir-format FORMAT         Subdirectory format (default: &account-&folder)"
             echo "  -x, --use-subdirs BOOL             Use subdirectories (default: true)"
-            echo "  -c, --conda-env NAME               Conda environment name"
-            echo "  -e, --remove-conda-env BOOL        Remove conda environment after export"
+            echo "  -v, --use-venv                     Use local .venv (auto-creates with uv if missing)"
             echo "  -U, --update-all                   Force full update (disable incremental updates)"
             echo "  -a, --all-formats, --all           Enable all format conversions"
             echo "  -h, --help                         Show this help message"
@@ -202,48 +188,33 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Initialize Conda for Zsh
-eval "$(conda shell.zsh hook)"
-
-# Function to check if a conda environment exists
-conda_env_exists() {
-    conda info --envs | grep -q "^$1 "
+# Function to check if local venv exists
+venv_exists() {
+    [[ -d "$SCRIPT_DIR/.venv" ]]
 }
 
-# Function to create a conda environment
-create_conda_env() {
-    conda create -y -n "$1" python=3.9
-    eval "$(conda shell.zsh hook)" # Ensure conda is reinitialized
-    conda activate "$1"
-    pip install -r "$SCRIPT_DIR/requirements.txt"
+# Function to create local venv with uv
+create_venv() {
+    echo "Creating virtual environment with uv..."
+    uv venv "$SCRIPT_DIR/.venv"
+    echo "Installing dependencies..."
+    uv pip install -r "$SCRIPT_DIR/requirements.txt" --python "$SCRIPT_DIR/.venv/bin/python"
 }
 
-# Function to deactivate a conda environment
-deactivate_conda_env() {
-    echo "Deactivating conda environment"
-    conda deactivate
+# Function to activate local venv
+activate_venv() {
+    source "$SCRIPT_DIR/.venv/bin/activate"
 }
 
-# Function to remove a conda environment
-remove_conda_env() {
-    local env_name="$1"
-    if conda_env_exists "$env_name"; then
-        echo "Removing conda environment: $env_name"
-        conda remove --name "$env_name" --all -y
+# Handle venv setup
+if [[ "${NOTES_EXPORT_USE_VENV}" == "true" ]]; then
+    if venv_exists; then
+        echo "Activating existing virtual environment: $SCRIPT_DIR/.venv"
+        activate_venv
     else
-        echo "Conda environment $env_name does not exist."
-    fi
-}
-
-# Handle conda environment
-if [[ -n "${NOTES_EXPORT_CONDA_ENV}" ]]; then
-    if conda_env_exists "${NOTES_EXPORT_CONDA_ENV}"; then
-        echo "Activating existing conda environment: ${NOTES_EXPORT_CONDA_ENV}"
-        eval "$(conda shell.zsh hook)" # Ensure conda is reinitialized
-        conda activate "${NOTES_EXPORT_CONDA_ENV}"
-    else
-        echo "Creating and activating new conda environment: ${NOTES_EXPORT_CONDA_ENV}"
-        create_conda_env "${NOTES_EXPORT_CONDA_ENV}"
+        echo "Creating and activating new virtual environment..."
+        create_venv
+        activate_venv
     fi
 fi
 
@@ -310,12 +281,6 @@ fi
 if [[ "${NOTES_EXPORT_CONVERT_TO_WORD}" == "true" ]]; then
     echo "Converting to Word..."
     python "$SCRIPT_DIR/convert_to_word.py"
-fi
-
-# Optionally deactivate and remove the conda environment
-if [[ "${NOTES_EXPORT_REMOVE_CONDA_ENV}" == "true" && -n "${NOTES_EXPORT_CONDA_ENV}" ]]; then
-    deactivate_conda_env
-    remove_conda_env "${NOTES_EXPORT_CONDA_ENV}"
 fi
 
 # Calculate and display elapsed time
