@@ -234,6 +234,18 @@ Import notes using filenames using the account name and the internal apple note 
 exportnotes.zsh --filename-format "&account-&folder-&id" --use-subdirs false
 ```
 
+Export only notes from folders containing "Work" in their name (case-insensitive):
+
+```bash
+exportnotes.zsh --folder Work
+```
+
+Extract only images from your "Journal" folder to a custom directory (flat structure, no HTML files):
+
+```bash
+exportnotes.zsh --folder Journal --images-only --root-dir ~/Pictures/JournalImages
+```
+
 ## Advanced Usage
 
 ### Command-Line Parameters
@@ -254,6 +266,8 @@ exportnotes.zsh --filename-format "&account-&folder-&id" --use-subdirs false
 * `--note-limit-per-folder` or `-f`: Set a limit on the number of notes to export per folder.
 * `--note-pick-probability` or `-b`: The probability (0-100) of picking a note for export. Default is 100.
 * `--use-venv` or `-v`: Use a local `.venv` virtual environment. Auto-creates with `uv` if it doesn't exist.
+* `--folder` or `-F`: Only export notes from folders whose name contains the specified text (case-insensitive).
+* `--images-only` or `-I`: Extract only images to the root directory as a flat structure (no HTML/text files created).
 
 ### Environment Variables
 
@@ -274,6 +288,8 @@ You can also use environment variables to set defaults, which can be overridden 
 * `NOTES_EXPORT_SUBDIR_FORMAT`: Format for subdirectories. Default is `&account-&folder`.
 * `NOTES_EXPORT_USE_SUBDIRS`: Set to `false` to keep all files in a single directory. Default is `true`.
 * `NOTES_EXPORT_USE_VENV`: Set to `true` to use a local `.venv` virtual environment. Default is `false`.
+* `NOTES_EXPORT_FOLDER_FILTER`: Only export notes from folders whose name contains this text (case-insensitive).
+* `NOTES_EXPORT_IMAGES_ONLY`: Set to `true` to extract only images to a flat directory structure.
 
 You could add these to your `.zshrc` file to set up defaults, for example:
 

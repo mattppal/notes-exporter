@@ -7,7 +7,8 @@ on run argv
     set envFilenameFormat to item 5 of argv
     set envSubdirFormat to item 6 of argv
     set envUseSubdirs to item 7 of argv
-    set envUpdateAll to item 8 of argv  -- NEW: update all notes flag
+    set envUpdateAll to item 8 of argv  -- update all notes flag
+    set envFolderFilter to item 9 of argv  -- folder filter (empty = all folders)
 
     -- Convert envRootDir to an absolute path if necessary - avoid CFURLGetFSRef was passed a URL which has no scheme warning
     if envRootDir starts with "./" then
@@ -47,6 +48,11 @@ on run argv
         set updateAllNotes to true
     end if
 
+    -- Log folder filter if set
+    if envFolderFilter is not equal to "" then
+        log "Folder filter active: only exporting folders containing '" & envFolderFilter & "'"
+    end if
+
     set htmlDirectory to envRootDir & "html/"
     set textDirectory to envRootDir & "text/"
     set dataDirectory to envRootDir & "data/"
@@ -80,6 +86,28 @@ on run argv
             set theFolders to every folder of anAccount
             repeat with aFolder in theFolders
                 set folderName to my makeValidFilename(name of aFolder)
+                set originalFolderName to name of aFolder
+                
+                -- Check folder filter (case-insensitive contains match)
+                if envFolderFilter is not equal to "" then
+                    set folderMatches to my folderMatchesFilter(originalFolderName, envFolderFilter)
+                    if not folderMatches then
+                        log "Skipping folder (doesn't match filter): " & originalFolderName
+                        -- Skip to next folder
+                    else
+                        log "Processing folder (matches filter): " & originalFolderName
+                    end if
+                    if not folderMatches then
+                        -- Use a flag to skip processing - AppleScript doesn't have continue
+                        set skipThisFolder to true
+                    else
+                        set skipThisFolder to false
+                    end if
+                else
+                    set skipThisFolder to false
+                end if
+                
+                if not skipThisFolder then
                 set theNotes to notes of aFolder
                 set folderNoteCount to 0
                 set outputNoteCount to 0
@@ -223,6 +251,7 @@ on run argv
                 else
                     log "No notes were processed, skipping data save"
                 end if
+                end if -- end skipThisFolder check
             end repeat
         end repeat
     end tell
@@ -862,3 +891,17 @@ on getSubdirFromPath(folderPath)
     end if
     return ""
 end getSubdirFromPath
+
+-- Check if folder name matches the filter (case-insensitive contains)
+on folderMatchesFilter(folderName, filterText)
+    -- Convert both to lowercase for case-insensitive comparison
+    set lowerFolderName to do shell script "echo " & quoted form of folderName & " | tr '[:upper:]' '[:lower:]'"
+    set lowerFilter to do shell script "echo " & quoted form of filterText & " | tr '[:upper:]' '[:lower:]'"
+    
+    -- Check if folder name contains the filter text
+    if lowerFolderName contains lowerFilter then
+        return true
+    else
+        return false
+    end if
+end folderMatchesFilter

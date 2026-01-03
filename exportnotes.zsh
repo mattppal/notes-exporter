@@ -19,6 +19,8 @@ export NOTES_EXPORT_SUBDIR_FORMAT="${NOTES_EXPORT_SUBDIR_FORMAT:=&account-&folde
 export NOTES_EXPORT_USE_SUBDIRS="${NOTES_EXPORT_USE_SUBDIRS:=true}"
 export NOTES_EXPORT_USE_VENV="${NOTES_EXPORT_USE_VENV:=false}"
 export NOTES_EXPORT_UPDATE_ALL="${NOTES_EXPORT_UPDATE_ALL:=false}"  # Default to incremental updates
+export NOTES_EXPORT_FOLDER_FILTER="${NOTES_EXPORT_FOLDER_FILTER:=}"  # Filter to specific folder(s)
+export NOTES_EXPORT_IMAGES_ONLY="${NOTES_EXPORT_IMAGES_ONLY:=false}"  # Extract only images to flat dir
 
 # Force image extraction if either Markdown, PDF, or Word conversion is enabled
 if [[ "${NOTES_EXPORT_CONVERT_TO_MARKDOWN}" == "true" || "${NOTES_EXPORT_CONVERT_TO_PDF}" == "true" || "${NOTES_EXPORT_CONVERT_TO_WORD}" == "true" ]]; then
@@ -136,6 +138,19 @@ while [[ $# -gt 0 ]]; do
             export NOTES_EXPORT_USE_VENV="true"
             shift
             ;;
+        --folder|-F)
+            if [[ -z "$2" ]]; then
+                echo "Error: --folder requires an argument."
+                exit 1
+            fi
+            export NOTES_EXPORT_FOLDER_FILTER="$2"
+            shift 2
+            ;;
+        --images-only|-I)
+            export NOTES_EXPORT_IMAGES_ONLY="true"
+            export NOTES_EXPORT_EXTRACT_IMAGES="true"
+            shift
+            ;;
         --update-all|-U)
             # NEW: Force full update of all notes (disable incremental updates)
             export NOTES_EXPORT_UPDATE_ALL="true"
@@ -168,6 +183,8 @@ while [[ $# -gt 0 ]]; do
             echo "  -u, --subdir-format FORMAT         Subdirectory format (default: &account-&folder)"
             echo "  -x, --use-subdirs BOOL             Use subdirectories (default: true)"
             echo "  -v, --use-venv                     Use local .venv (auto-creates with uv if missing)"
+            echo "  -F, --folder NAME                  Only export notes from folder(s) matching NAME"
+            echo "  -I, --images-only                  Extract only images to flat directory structure"
             echo "  -U, --update-all                   Force full update (disable incremental updates)"
             echo "  -a, --all-formats, --all           Enable all format conversions"
             echo "  -h, --help                         Show this help message"
@@ -230,7 +247,7 @@ if [[ "${NOTES_EXPORT_EXTRACT_DATA}" == "true" ]]; then
     echo "Extracting note data..."
     
     # Run AppleScript (simple, like the working version)
-    osascript "$SCRIPT_DIR/export_notes.scpt" "$NOTES_EXPORT_ROOT_DIR" "$NOTES_EXPORT_NOTE_LIMIT" "$NOTES_EXPORT_NOTE_LIMIT_PER_FOLDER" "$NOTES_EXPORT_NOTE_PICK_PROBABILITY" "$NOTES_EXPORT_FILENAME_FORMAT" "$NOTES_EXPORT_SUBDIR_FORMAT" "$NOTES_EXPORT_USE_SUBDIRS" "$NOTES_EXPORT_UPDATE_ALL"
+    osascript "$SCRIPT_DIR/export_notes.scpt" "$NOTES_EXPORT_ROOT_DIR" "$NOTES_EXPORT_NOTE_LIMIT" "$NOTES_EXPORT_NOTE_LIMIT_PER_FOLDER" "$NOTES_EXPORT_NOTE_PICK_PROBABILITY" "$NOTES_EXPORT_FILENAME_FORMAT" "$NOTES_EXPORT_SUBDIR_FORMAT" "$NOTES_EXPORT_USE_SUBDIRS" "$NOTES_EXPORT_UPDATE_ALL" "$NOTES_EXPORT_FOLDER_FILTER"
     
     # Read statistics from temporary file
     STATS_FILE="${NOTES_EXPORT_ROOT_DIR}/data/export_stats.tmp"
@@ -265,6 +282,16 @@ fi
 if [[ "${NOTES_EXPORT_EXTRACT_IMAGES}" == "true" ]]; then
     echo "Extracting images..."
     python "$SCRIPT_DIR/extract_images.py"
+fi
+
+# Clean up temporary directories in images-only mode
+if [[ "${NOTES_EXPORT_IMAGES_ONLY}" == "true" ]]; then
+    echo "Cleaning up temporary directories (images-only mode)..."
+    rm -rf "${NOTES_EXPORT_ROOT_DIR}/data"
+    rm -rf "${NOTES_EXPORT_ROOT_DIR}/html"
+    rm -rf "${NOTES_EXPORT_ROOT_DIR}/raw"
+    rm -rf "${NOTES_EXPORT_ROOT_DIR}/text"
+    echo "Cleanup complete - only image files remain"
 fi
 
 # Conditionally execute the conversion scripts

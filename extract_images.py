@@ -8,6 +8,12 @@ def extract_and_replace_base64_images():
     """Extract base64 images from raw HTML files and create processed HTML files"""
     tracker = get_tracker()
     
+    # Check for images-only mode
+    images_only = os.environ.get('NOTES_EXPORT_IMAGES_ONLY', 'false').lower() == 'true'
+    
+    if images_only:
+        print("Running in IMAGES-ONLY mode - extracting images to flat directory")
+    
     # Get notes that need image extraction
     notes_to_process = tracker.get_notes_to_process('images')
     
@@ -20,6 +26,13 @@ def extract_and_replace_base64_images():
     # Set up directories
     raw_folder_path = os.path.join(tracker.root_directory, 'raw')
     html_folder_path = os.path.join(tracker.root_directory, 'html')
+    
+    # For images-only mode, output directly to root directory
+    if images_only:
+        images_output_dir = Path(tracker.root_directory)
+        images_output_dir.mkdir(parents=True, exist_ok=True)
+    
+    total_images_extracted = 0
     
     for note in notes_to_process:
         try:
@@ -35,8 +48,13 @@ def extract_and_replace_base64_images():
                 html_file = Path(html_folder_path) / f"{note['filename']}.html"
                 attachments_dir = Path(html_folder_path) / 'attachments'
             
-            # Ensure output directory exists
-            html_file.parent.mkdir(parents=True, exist_ok=True)
+            # In images-only mode, use root directory for output
+            if images_only:
+                attachments_dir = images_output_dir
+            
+            # Ensure output directory exists (only for non-images-only mode)
+            if not images_only:
+                html_file.parent.mkdir(parents=True, exist_ok=True)
             
             # Check if raw file exists
             if not raw_file.exists():
@@ -83,34 +101,45 @@ def extract_and_replace_base64_images():
                         with open(img_filepath, "wb") as img_file:
                             img_file.write(image)
                         
-                        # Log the image writing (relative to root directory)
-                        relative_path = img_filepath.relative_to(Path(tracker.root_directory))
-                        print(f"Image written: {relative_path}")
+                        # Log the image writing
+                        if images_only:
+                            print(f"Image written: {img_filename}")
+                        else:
+                            relative_path = img_filepath.relative_to(Path(tracker.root_directory))
+                            print(f"Image written: {relative_path}")
                         
-                        # Update src attribute in HTML to point to extracted image
-                        img_relative_path = f"./attachments/{img_filename}"
-                        img_tag['src'] = img_relative_path
+                        # Update src attribute in HTML to point to extracted image (only for non-images-only)
+                        if not images_only:
+                            img_relative_path = f"./attachments/{img_filename}"
+                            img_tag['src'] = img_relative_path
                         
                         images_extracted = True
+                        total_images_extracted += 1
                         
                     except Exception as e:
                         print(f"Error extracting image {img_ctr} from {raw_file}: {e}")
                         continue
             
-            # Always save the processed HTML file (even if no images were extracted)
-            with open(html_file, "w", encoding="utf-8") as file:
-                file.write(str(soup))
-            
-            if images_extracted:
-                print(f"Processed HTML with extracted images saved: {html_file}")
-            else:
-                print(f"Processed HTML saved (no images found): {html_file}")
+            # Save processed HTML file only in normal mode (not images-only)
+            if not images_only:
+                with open(html_file, "w", encoding="utf-8") as file:
+                    file.write(str(soup))
+                
+                if images_extracted:
+                    print(f"Processed HTML with extracted images saved: {html_file}")
+                else:
+                    print(f"Processed HTML saved (no images found): {html_file}")
             
             # Mark as exported in JSON
             tracker.mark_note_exported(note['json_file'], note['note_id'], 'images')
             
         except Exception as e:
             print(f"Error processing {note['filename']}: {e}")
+    
+    if images_only:
+        print(f"\n=== IMAGES-ONLY MODE COMPLETE ===")
+        print(f"Total images extracted: {total_images_extracted}")
+        print(f"Output directory: {images_output_dir}")
 
 if __name__ == "__main__":
     extract_and_replace_base64_images()
