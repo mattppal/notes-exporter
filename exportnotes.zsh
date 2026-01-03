@@ -223,16 +223,14 @@ activate_venv() {
     source "$SCRIPT_DIR/.venv/bin/activate"
 }
 
-# Handle venv setup
-if [[ "${NOTES_EXPORT_USE_VENV}" == "true" ]]; then
-    if venv_exists; then
-        echo "Activating existing virtual environment: $SCRIPT_DIR/.venv"
-        activate_venv
-    else
-        echo "Creating and activating new virtual environment..."
-        create_venv
-        activate_venv
-    fi
+# Handle venv setup - auto-activate if .venv exists, or create if --use-venv specified
+if venv_exists; then
+    echo "Activating existing virtual environment: $SCRIPT_DIR/.venv"
+    activate_venv
+elif [[ "${NOTES_EXPORT_USE_VENV}" == "true" ]]; then
+    echo "Creating and activating new virtual environment..."
+    create_venv
+    activate_venv
 fi
 
 # Log the update mode being used
@@ -281,17 +279,26 @@ fi
 # Conditionally execute the image extraction script
 if [[ "${NOTES_EXPORT_EXTRACT_IMAGES}" == "true" ]]; then
     echo "Extracting images..."
-    python "$SCRIPT_DIR/extract_images.py"
+    python3 "$SCRIPT_DIR/extract_images.py"
 fi
 
-# Clean up temporary directories in images-only mode
+# Clean up temporary directories in images-only mode (only if images exist)
 if [[ "${NOTES_EXPORT_IMAGES_ONLY}" == "true" ]]; then
-    echo "Cleaning up temporary directories (images-only mode)..."
-    rm -rf "${NOTES_EXPORT_ROOT_DIR}/data"
-    rm -rf "${NOTES_EXPORT_ROOT_DIR}/html"
-    rm -rf "${NOTES_EXPORT_ROOT_DIR}/raw"
-    rm -rf "${NOTES_EXPORT_ROOT_DIR}/text"
-    echo "Cleanup complete - only image files remain"
+    # Count image files in root directory
+    IMAGE_COUNT=$(find "${NOTES_EXPORT_ROOT_DIR}" -maxdepth 1 -type f \( -name "*.png" -o -name "*.jpg" -o -name "*.jpeg" -o -name "*.gif" -o -name "*.webp" \) 2>/dev/null | wc -l | tr -d ' ')
+    
+    if [[ "$IMAGE_COUNT" -gt 0 ]]; then
+        echo "Found $IMAGE_COUNT images - cleaning up temporary directories..."
+        rm -rf "${NOTES_EXPORT_ROOT_DIR}/data"
+        rm -rf "${NOTES_EXPORT_ROOT_DIR}/html"
+        rm -rf "${NOTES_EXPORT_ROOT_DIR}/raw"
+        rm -rf "${NOTES_EXPORT_ROOT_DIR}/text"
+        echo "Cleanup complete - only image files remain"
+    else
+        echo "WARNING: No images were extracted to root directory!"
+        echo "Keeping temporary directories for debugging."
+        echo "Check if your folder filter matches any folders with images."
+    fi
 fi
 
 # Conditionally execute the conversion scripts
